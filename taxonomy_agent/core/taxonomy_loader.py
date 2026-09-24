@@ -14,17 +14,22 @@ from typing import Optional
 
 @dataclass
 class TaxonomyNode:
-    id: str
-    name: str
-    full_path: str
-    description: str
+    id: str                          # e.g. "primitive_ai/research"
+    name: str                        # e.g. "Research"
+    full_path: str                   # e.g. "Primitive AI / Research"
+    description: str                 # rich text for embedding
     keywords: list[str]
-    auto_rules: list[dict]
+    auto_rules: list[dict]           # fast-path rules that bypass ML
     parent_id: Optional[str]
     children: list[str] = field(default_factory=list)
     depth: int = 0
 
     def embed_text(self) -> str:
+        """
+        The text we actually embed. Combining path + description + keywords
+        gives the embedder much more signal than just the label name.
+        This is the TELEClass enrichment idea in practice.
+        """
         parts = [
             f"Category: {self.full_path}",
             f"Description: {self.description.strip()}",
@@ -34,9 +39,14 @@ class TaxonomyNode:
         return "\n".join(parts)
 
     def matches_auto_rule(self, filename: str, content_snippet: str = "") -> bool:
+        """
+        Fast-path: check filename patterns and content keywords
+        before touching any ML. Zero latency.
+        """
         for rule in self.auto_rules:
             pattern = rule.get("pattern", "")
             if pattern and fnmatch.fnmatch(filename.lower(), pattern.lower()):
+                # If there's a content constraint too, check it
                 contains_any = rule.get("contains_any", [])
                 if not contains_any:
                     return True
@@ -98,6 +108,7 @@ class TaxonomyLoader:
         return node_id
 
     def get_leaf_nodes(self) -> list[TaxonomyNode]:
+        """Nodes with no children — most specific classification targets."""
         return [n for n in self.nodes.values() if not n.children]
 
     def get_all_nodes(self) -> list[TaxonomyNode]:
@@ -107,6 +118,7 @@ class TaxonomyLoader:
         return self.nodes.get(node_id)
 
     def get_path_to_root(self, node_id: str) -> list[TaxonomyNode]:
+        """Walk from a leaf up to the root — used for H3Prompt top-down classification."""
         path = []
         current = self.nodes.get(node_id)
         while current:
@@ -115,6 +127,7 @@ class TaxonomyLoader:
         return list(reversed(path))
 
     def get_children(self, node_id: Optional[str] = None) -> list[TaxonomyNode]:
+        """Get direct children of a node, or top-level nodes if node_id is None."""
         if node_id is None:
             return [n for n in self.nodes.values() if n.parent_id is None]
         node = self.nodes.get(node_id)
