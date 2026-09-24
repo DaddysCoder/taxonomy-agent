@@ -1,0 +1,21 @@
+# Core ML
+sentence-transformers>=2.7.0   # local embeddings (nomic-embed-text or all-MiniLM-L6-v2)
+hnswlib>=0.8.0                  # HNSW approximate nearest neighbour index
+numpy>=1.26.0
+
+# File reading
+pypdf2>=3.0.0                   # PDF text extraction
+python-docx>=1.1.0              # Word doc text extraction
+pillow>=10.0.0                  # image metadata
+python-magic>=0.4.27            # file type detection
+
+# Claude API
+anthropic>=0.25.0
+
+# Filesystem watching
+watchdog>=4.0.0
+
+# Config & persistence
+pyyaml>=6.0.1
+rich>=13.0.0                    # pretty terminal output
+click>=8.1.7                    # CLI
