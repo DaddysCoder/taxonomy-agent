@@ -39,8 +39,9 @@ from .file_reader import FileReader
 
 
 # Confidence thresholds
-HIGH_THRESHOLD = 0.82
-LOW_THRESHOLD = 0.60
+HIGH_THRESHOLD = 0.82   # auto-classify to leaf
+LOW_THRESHOLD = 0.60    # classify to parent, queue review
+# Below LOW_THRESHOLD → escalate to Claude
 
 
 class ClassificationTier(Enum):
@@ -52,15 +53,15 @@ class ClassificationTier(Enum):
 @dataclass
 class ClassificationResult:
     file_path: str
-    node_id: str
-    node_path: str
-    confidence: float
+    node_id: str             # best taxonomy node id
+    node_path: str           # human-readable e.g. "Primitive AI / Research"
+    confidence: float        # 0.0 - 1.0
     tier: ClassificationTier
-    is_certain: bool
-    needs_review: bool
-    reasoning: str
+    is_certain: bool         # True if we're confident enough to auto-move
+    needs_review: bool       # True if human should confirm
+    reasoning: str           # explanation (always present for Claude tier)
     latency_ms: float
-    suggested_filename: Optional[str] = None
+    suggested_filename: Optional[str] = None  # if rename is suggested
 
 
 class FileClassifier:
@@ -89,9 +90,13 @@ class FileClassifier:
         return self._claude_client
 
     def classify(self, file_path: Path) -> ClassificationResult:
+        """Main entry point. Returns a ClassificationResult."""
         t0 = time.perf_counter()
+
+        # Extract file content
         file_data = self.reader.extract(file_path)
 
+        # ── TIER 1: Auto-rules ──────────────────────────────────────────────
         for node in self.taxonomy.get_all_nodes():
             if node.matches_auto_rule(file_data["filename"], file_data["snippet"]):
                 latency = (time.perf_counter() - t0) * 1000
@@ -107,6 +112,7 @@ class FileClassifier:
                     latency_ms=latency,
                 )
 
+        # ── TIER 2: HNSW Embedding Search ───────────────────────────────────
         embed_text = file_data["text"]
         all_leaf_nodes = self.taxonomy.get_leaf_nodes()
         leaf_ids = [n.id for n in all_leaf_nodes]
@@ -118,6 +124,7 @@ class FileClassifier:
             best_node = self.taxonomy.get_node(best_id)
 
             if best_score >= HIGH_THRESHOLD:
+                # High confidence — auto-classify to leaf
                 latency = (time.perf_counter() - t0) * 1000
                 return ClassificationResult(
                     file_path=str(file_path),
@@ -132,6 +139,8 @@ class FileClassifier:
                 )
 
             elif best_score >= LOW_THRESHOLD:
+                # Medium confidence — classify to parent, flag for review
+                # Hierarchical selective classification: abstain at leaf, keep parent
                 parent_id = best_node.parent_id if best_node else None
                 if parent_id:
                     parent_node = self.taxonomy.get_node(parent_id)
@@ -152,12 +161,27 @@ class FileClassifier:
                         latency_ms=(time.perf_counter() - t0) * 1000,
                     )
 
+        # ── TIER 3: Claude H3Prompt ──────────────────────────────────────────
+        # Only genuinely ambiguous files reach here (<5% typical)
         return self._classify_with_claude(file_path, file_data, t0)
 
     def _classify_with_claude(
         self, file_path: Path, file_data: dict, t0: float
     ) -> ClassificationResult:
+        """
+        Hierarchical 3-step prompting (H3Prompt).
+        
+        Step 1: Top-level category selection
+        Step 2: Subcategory selection (among children of step 1 result)
+        Step 3: Final confirmation + rename suggestion
+        
+        Using 3 small targeted calls instead of 1 big one:
+        - Each call is cheaper (less output tokens)
+        - Each call is more accurate (simpler decision)
+        - Errors don't compound across the full path
+        """
         if not self.api_key:
+            # No API key — fall back to lowest-confidence embedding result
             results = self.embedder.find_nearest(file_data["text"], k=1)
             if results:
                 best_id, best_score = results[0]
@@ -181,6 +205,7 @@ class FileClassifier:
         )
 
         try:
+            # ── Step 1: Top-level category ──
             top_nodes = self.taxonomy.get_children(None)
             top_options = "\n".join(
                 f"- {n.name}: {n.description[:100].strip()}"
@@ -203,11 +228,13 @@ class FileClassifier:
             top_choice = step1_response.content[0].text.strip()
             top_node = next(
                 (n for n in top_nodes if n.name.lower() == top_choice.lower()),
-                top_nodes[0]
+                top_nodes[0]  # fallback to first if no match
             )
 
+            # ── Step 2: Subcategory ──
             children = self.taxonomy.get_children(top_node.id)
             if not children:
+                # No children — top node IS the classification
                 return ClassificationResult(
                     file_path=str(file_path),
                     node_id=top_node.id,
@@ -245,6 +272,7 @@ class FileClassifier:
                 children[0]
             )
 
+            # ── Step 3: Confirm + rename suggestion ──
             step3_response = self.claude.messages.create(
                 model="claude-sonnet-4-6",
                 max_tokens=200,
@@ -278,6 +306,7 @@ class FileClassifier:
                 None if filename_suggestion == "KEEP" else filename_suggestion
             )
 
+            # If Claude disagreed with its own choice, fallback to parent
             final_node = sub_node if is_correct else top_node
 
             return ClassificationResult(
@@ -294,6 +323,7 @@ class FileClassifier:
             )
 
         except Exception as e:
+            # Claude call failed — return low-confidence embedding fallback
             results = self.embedder.find_nearest(file_data["text"], k=1)
             best_id = results[0][0] if results else list(self.taxonomy.nodes.keys())[0]
             best_score = results[0][1] if results else 0.0
