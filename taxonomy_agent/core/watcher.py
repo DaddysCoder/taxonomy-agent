@@ -22,7 +22,7 @@ try:
 except ImportError:
     HAS_WATCHDOG = False
 
-SETTLE_SECONDS = 2.0
+SETTLE_SECONDS = 2.0   # wait after file appears before reading it
 IGNORE_EXTENSIONS = {".tmp", ".part", ".crdownload", ".download"}
 IGNORE_PREFIXES = {".", "~", "_"}
 
@@ -39,6 +39,7 @@ class TaxonomyEventHandler(FileSystemEventHandler):
         path = Path(event.src_path)
         if self._should_ignore(path):
             return
+        # Debounce: cancel any pending timer for this path and restart
         if event.src_path in self._pending:
             self._pending[event.src_path].cancel()
         timer = threading.Timer(
@@ -50,6 +51,7 @@ class TaxonomyEventHandler(FileSystemEventHandler):
         timer.start()
 
     def on_moved(self, event):
+        """Also catch files moved INTO a watched directory."""
         if event.is_directory:
             return
         path = Path(event.dest_path)
