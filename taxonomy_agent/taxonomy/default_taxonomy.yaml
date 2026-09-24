@@ -1,0 +1,156 @@
+# Personal Taxonomy - edit this to match YOUR mental model
+# Each node has:
+#   description: rich text used for embedding (more detail = better matching)
+#   keywords: extra signal for the embedder
+#   auto_rules: simple rules that bypass ML entirely (fastest path)
+
+taxonomy:
+  - name: Primitive AI
+    description: >
+      Business venture, startup documents, AI product development, Primitive AI company.
+      Partner meetings, business strategy, pitch decks, roadmaps, revenue, funding,
+      investor documents, product specs, go-to-market plans.
+    keywords: [primitive ai, business, startup, venture, partner, pitch, funding, product]
+    children:
+      - name: Research
+        description: >
+          Academic papers, scientific literature, arXiv papers, research notes,
+          neuromorphic computing, behaviour science applied to AI, taxonomy papers,
+          machine learning research, LLM papers, RAG, embeddings, vector databases.
+        keywords: [paper, arxiv, research, study, literature, IEEE, ACM, journal]
+        auto_rules:
+          - pattern: "*.pdf"
+            contains_any: [arxiv, doi, abstract, references, journal]
+
+      - name: Business Docs
+        description: >
+          Meeting notes, strategy documents, business model canvas, competitive analysis,
+          role responsibilities, game plan, business direction, investor updates.
+        keywords: [meeting, strategy, notes, roles, canvas, model, plan, update]
+
+      - name: Product
+        description: >
+          CRM features, risk profiling system, participant monitoring, product specs,
+          wireframes, feature lists, user stories, technical requirements.
+        keywords: [crm, feature, spec, wireframe, user story, requirement, product]
+
+      - name: Code
+        description: >
+          Python scripts, JavaScript, code files, notebooks, Jupyter notebooks,
+          taxonomy agent code, API integrations, Anthropic API, Claude API calls.
+        keywords: [python, javascript, code, script, notebook, jupyter, api, claude]
+        auto_rules:
+          - pattern: "*.py"
+          - pattern: "*.js"
+          - pattern: "*.ts"
+          - pattern: "*.ipynb"
+
+  - name: University
+    description: >
+      Honours degree, university coursework, UWA, undergraduate work,
+      psychological behavioural science, academic assignments, essays, submissions,
+      study notes, lecture slides, exam preparation.
+    keywords: [honours, UWA, university, assignment, essay, coursework, lecture, exam, study]
+    children:
+      - name: Honours Research
+        description: >
+          Honours thesis, research proposal, literature review, methodology,
+          data collection, statistical analysis, ethics approval, supervisor meetings.
+        keywords: [thesis, proposal, literature review, methodology, ethics, supervisor, chapter]
+
+      - name: Assignments
+        description: >
+          Submitted assignments, essays, reports, presentations for coursework units.
+        keywords: [assignment, submission, essay, report, unit, grade, feedback]
+        auto_rules:
+          - pattern: "*assignment*"
+          - pattern: "*submission*"
+          - pattern: "*essay*"
+
+      - name: Study Notes
+        description: >
+          Lecture notes, reading summaries, study guides, flashcards, weekly readings.
+        keywords: [notes, summary, reading, week, lecture, slides, guide]
+
+  - name: Behaviour Practice
+    description: >
+      Behaviour practitioner work, NDIS, disability services, support plans,
+      behaviour support plans, functional behaviour assessments, incident reports,
+      participant documentation, stakeholder reports, clinical notes.
+    keywords: [behaviour, NDIS, participant, support plan, BSP, FBA, incident, clinical, practitioner]
+    children:
+      - name: Participant Docs
+        description: >
+          Behaviour support plans, functional assessments, goal tracking,
+          progress notes, session notes, individual participant files.
+        keywords: [support plan, assessment, goals, progress, session, participant]
+
+      - name: Templates
+        description: >
+          Blank templates, pro-forma documents, reusable frameworks,
+          assessment templates, report templates.
+        keywords: [template, pro-forma, blank, reusable, framework]
+
+      - name: Reports
+        description: >
+          Completed reports for stakeholders, NDIS reports, annual reviews,
+          funding reports, professional correspondence.
+        keywords: [report, review, correspondence, stakeholder, annual, funding]
+
+  - name: Learning
+    description: >
+      Self-directed learning, coding tutorials, AI/ML courses, online courses,
+      skill development, YouTube tutorials saved, documentation, how-to guides.
+    keywords: [tutorial, course, learning, guide, howto, documentation, skill]
+    children:
+      - name: Coding
+        description: >
+          Programming tutorials, Python learning, JavaScript guides, LLM API docs,
+          Claude documentation, Anthropic docs, coding exercises, practice projects.
+        keywords: [python, javascript, tutorial, api docs, anthropic, claude, coding, programming]
+
+      - name: AI & ML
+        description: >
+          Machine learning concepts, AI fundamentals, vector databases, embeddings,
+          RAG systems, prompt engineering, agent frameworks, LLM fine-tuning.
+        keywords: [machine learning, AI, embeddings, RAG, vector, prompt, agent, LLM]
+
+  - name: Personal
+    description: >
+      Personal life documents, not work or study related.
+      Finance, health, admin, creative projects, photos, personal writing.
+    keywords: [personal, private, life, admin]
+    children:
+      - name: Finance
+        description: >
+          Bank statements, tax returns, invoices, receipts, superannuation,
+          insurance documents, financial planning.
+        keywords: [tax, invoice, receipt, bank, statement, super, insurance, finance]
+        auto_rules:
+          - pattern: "*invoice*"
+          - pattern: "*receipt*"
+          - pattern: "*tax*"
+          - pattern: "*statement*"
+
+      - name: Creative
+        description: >
+          Personal writing, creative projects, music, art, design work,
+          side projects not related to Primitive AI.
+        keywords: [creative, writing, music, art, design, project, personal]
+
+      - name: Admin
+        description: >
+          ID documents, certificates, contracts, legal documents, subscriptions,
+          registration, government correspondence.
+        keywords: [contract, certificate, ID, legal, registration, government, admin]
+
+  - name: Archive
+    description: >
+      Old files, completed projects, outdated documents that should be kept
+      but are no longer active. Anything completed or superseded.
+    keywords: [archive, old, completed, done, superseded, backup, legacy]
+    auto_rules:
+      - pattern: "*_old*"
+      - pattern: "*_archive*"
+      - pattern: "*_backup*"
+      - pattern: "*_bak*"
